@@ -73,6 +73,8 @@
 #include "core/framework/stream_execution_context.h"
 #endif
 
+#include "core/common/profiler.hpp"
+
 using namespace ONNX_NAMESPACE;
 using namespace onnxruntime::common;
 
@@ -1984,6 +1986,7 @@ Status InferenceSession::Run(const RunOptions& run_options,
                              gsl::span<const std::string> feed_names, gsl::span<const OrtValue> feeds,
                              gsl::span<const std::string> output_names, std::vector<OrtValue>* p_fetches,
                              const std::vector<OrtDevice>* p_fetches_device_info) {
+  auto prof = myprofiler.Profile(model_location_);
   TimePoint tp;
   if (session_profiler_.IsEnabled()) {
     tp = session_profiler_.Start();

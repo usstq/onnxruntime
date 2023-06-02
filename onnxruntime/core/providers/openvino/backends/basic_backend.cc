@@ -13,6 +13,8 @@
 #include "basic_backend.h"
 #include "../backend_manager.h"
 
+#include "core/common/profiler.hpp"
+
 namespace onnxruntime {
 
 namespace openvino_ep {
@@ -168,6 +170,7 @@ BasicBackend::BasicBackend(const ONNX_NAMESPACE::ModelProto& model_proto,
   // an Infer Request indexed by infer_req_idx
   void BasicBackend::StartAsyncInference(Ort::KernelContext & context, OVInferRequestPtr infer_request) {
     try {
+      auto prof1 = myprofiler.Profile("BasicBackend::StartAsyncInference");
       auto graph_input_info = exe_network_.Get().inputs();
       int input_idx = 0;
       for (auto input_info_iter = graph_input_info.begin();
@@ -204,14 +207,19 @@ BasicBackend::BasicBackend(const ONNX_NAMESPACE::ModelProto& model_proto,
             tensor_iter += 1;
           }
           auto input = ie_cnn_network_->get_parameters().at(input_idx);
-          OVTensorPtr tensor_ptr = std::make_shared<ov::Tensor>(input->get_element_type(), input_tensor_shape);
-          FillInputBlob(tensor_ptr, batch_slice_idx, input_name, context, subgraph_context_);
+          //OVTensorPtr tensor_ptr = std::make_shared<ov::Tensor>(input->get_element_type(), input_tensor_shape);
+          //FillInputBlob(tensor_ptr, batch_slice_idx, input_name, context, subgraph_context_);
+          const char* tensor_data = tensor.GetTensorData<char>();
+          OVTensorPtr tensor_ptr = std::make_shared<ov::Tensor>(input->get_element_type(), input_tensor_shape, (void*)tensor_data);
+          //std::cout << "settensor:" << input_name << ":" << (void*)tensor_data << std::endl;
+          auto prof13 = myprofiler.Profile(input_name);
           try {
             infer_request->SetTensor(input_name, tensor_ptr);
           } catch (const char* msg) {
             throw(msg);
           }
         } else {
+          auto prof13 = myprofiler.Profile("FillInputBlob");
           OVTensorPtr graph_input_blob;
           try {
             graph_input_blob = infer_request->GetTensor(input_name);
@@ -223,6 +231,7 @@ BasicBackend::BasicBackend(const ONNX_NAMESPACE::ModelProto& model_proto,
         input_idx++;
       }
       // Start Async inference
+      auto prof2 = myprofiler.Profile("infer_request->StartAsync");
       infer_request->StartAsync();
     } catch (const char* msg) {
       throw(msg);
@@ -332,6 +341,7 @@ BasicBackend::BasicBackend(const ONNX_NAMESPACE::ModelProto& model_proto,
     // Wait for Async inference completion
     try {
       infer_request->WaitRequest();
+      auto prof1 = myprofiler.Profile("infer_request->WaitRequest");
       auto graph_output_info = exe_network_.Get().outputs();
       for (auto output_info_iter = graph_output_info.begin();
            output_info_iter != graph_output_info.end(); ++output_info_iter) {
@@ -370,6 +380,7 @@ BasicBackend::BasicBackend(const ONNX_NAMESPACE::ModelProto& model_proto,
           return;
         } else {
           size_t batch_slice = 0;
+          auto prof2 = myprofiler.Profile(output_name);
           FillOutputBlob(graph_output_blob, output_tensor, batch_slice);
         }
       }
@@ -397,6 +408,7 @@ BasicBackend::BasicBackend(const ONNX_NAMESPACE::ModelProto& model_proto,
     // currently allows a maximum of 8 Infer request's to parallel execute at the same time
     Ort::KernelContext context(ctx);
 
+    auto _prof = myprofiler.Profile("BasicBackend::Infer");
     LOGS_DEFAULT(INFO) << log_tag << "Running graph " << subgraph_context_.subgraph_name;
     LOGS_DEFAULT(INFO) << log_tag << "In Infer";
 

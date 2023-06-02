@@ -8,6 +8,8 @@
 #include "core/util/math_cpuonly.h"
 #include "core/mlas/inc/mlas.h"
 
+#include "core/common/profiler.hpp"
+
 namespace onnxruntime {
 
 ONNX_CPU_OPERATOR_VERSIONED_TYPED_KERNEL(
@@ -159,6 +161,8 @@ Status MatMul<float>::UseSharedPrePackedBuffers(std::vector<BufferUniquePtr>& pr
 
 Status MatMul<float>::Compute(OpKernelContext* ctx) const {
   concurrency::ThreadPool* thread_pool = ctx->GetOperatorThreadPool();
+
+  auto prof = myprofiler.Profile(ctx->GetNodeName());
 
   const Tensor* a = ctx->Input<Tensor>(0);
   const Tensor* b = packed_b_ ? nullptr : ctx->Input<Tensor>(1);

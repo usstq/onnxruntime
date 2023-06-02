@@ -248,8 +248,8 @@ BackendManager::ReWriteBatchDimWithOne(const ONNX_NAMESPACE::ModelProto& model_p
 
 void BackendManager::Compute(OrtKernelContext* context) {
   Ort::KernelContext ctx(context);
-  std::chrono::high_resolution_clock::time_point start_compute, end_compute;
 #ifdef OPENVINO_FIL_ENABLED
+  std::chrono::high_resolution_clock::time_point start_compute, end_compute;
   static bool fil_enabled = true;
   if (fil_enabled) {
     start_compute = std::chrono::high_resolution_clock::now();
